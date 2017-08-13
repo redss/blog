@@ -6,8 +6,7 @@
     "version": "3.3.8"
   },
   "scripts": {
-    "generate": "yarn && hexo generate",
-    "server": "yarn && hexo server"
+    "generate": "yarn && hexo generate"
   },
   "dependencies": {
     "hexo": "^3.2.0",

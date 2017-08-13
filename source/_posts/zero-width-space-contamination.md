@@ -1,10 +1,10 @@
 ---
-title: Zero-width space contamination (work in progress)
+title: Zero-width space contamination
 date: 2017-08-06 20:08:02
 tags:
 ---
 
-One day I was running `docker-compose up -d`, minding my own business, when suddenly:
+One day I was running `docker-compose up -d`, minding my own business, when suddenly I got:
 
 ```
 Traceback (most recent call last):
@@ -24,49 +24,47 @@ KeyError: u'\u200b'
 Failed to execute script docker-compose
 ```
 
-I would like to write about this error, since searching for it on Google gave me hardly any results. Looking for `KeyError: u'\u200b'` yielded four results, and none of them were related to docker-compose. Actually, they were all related to Haiku operating system, which wasn’t much help. hopefully, now this blogpost will join them.
+I would like to write about this error, since searching for it on Google gave me hardly any results. Looking for `KeyError: u'\u200b'` phrase yielded four results, and none of them were related to Docker Compose. Actually, they were all related to Haiku Operating System, which wasn't much help. Hopefully, now this blog post will join them.
 
-In my case it was running `docker-compose`, but as I’ve found, it can be anything, really. So if you’re reading this, I hope I can save you a few hours of debugging.
+I got this while running `docker-compose` command but as I’ve found, similar errors can occur anywhere. So if you’re reading this, I hope I can save you a few hours of debugging.
 
 # Analysis
 
-Error message seems ambiguous, but let’s take a look at this `\u200b` symbol. Quick search yields following site:
+Let’s first take a look at this `\u200b` symbol. Quick search yields following site:
 
 [http://www.fileformat.info/info/unicode/char/200B/index.htm](http://www.fileformat.info/info/unicode/char/200B/index.htm)
 
-Well, _zero-width space_ certainly sounds like something that could ruin your day.
+It's a **zero-width space** -- an invisible whitespace character that can be used to control line breaks. It also sounds like something that could ruin your day. 
 
-Now let’s analyze the bottom of the stack trace:
+At this point it's clear who the culprit is. But to pinpoint its location, we must dig deeper. Let’s analyze the bottom of the stack trace:
 
 ```
 File "urllib.py", line 1306, in quote_plus
 File "urllib.py", line 1299, in quote
 ```
 
-We can find, that _urllib_ is a utility for fetching some web data and parsing urls. `quote` and `quote_plus` functions (todo: methods?) suggest, that someone was working on some kind of urls. Now ask yourself a question: have you changed any configuration files (or any other configuration or code) recently, that contained urls? If yes, than it may be time to check if your configuration wasn’t contaminated with some zero-width spaces.
+We can find, that `urllib.py` is a Python module used mainly for fetching some web data, but also parsing URLs. `quote` and `quote_plus` functions suggest, that someone was working with URLs.
 
-How do you check it? Unfortunately, as far as I know, most text editors doesn’t support showing it. But you can use some HEX editor, e. g. HEX-editor plugin for Notepad++.
+At this point it's obvious, that some zero-width space got itself into some URL. In fact, I did change one URL in `docker-compose.yml` before this problem appeared. Finding zero-width space should now be easy... right?
 
-On fileformat.info we can find, that HEX code for UTF-8 zero width space is `0xE2 0x80 0x8B`. We can now look for it in HEX-editor:
+After some tinkering I've learned yet another lesson about zero-width spaces: most text editors doesn't support showing them.
 
-(image)
+{% asset_img zero-width-space-notepad-plus-plus.png "Notepad++ will not show zero-width space even with &#34;Show All Characters&#34; turned on." %}
 
-There it is! Removing it should fix your problems.
+In the end I decided to use _HEX-Editor_ plugin for Notepad++. On [fileformat.info](http://www.fileformat.info/info/unicode/char/200B/index.htm) we can find, that hex code for UTF-8 zero width space is `0xE2 0x80 0x8B`.
 
-But where did I get this zero-width space from? In my case it was Jenkins. I copied build number and pasted it into my docker-compose.yml. It seems Jenkins puts some zero-width spaces inside the build numbers, huh.
+{% asset_img zero-width-space-hex.png "There the sucker is!" %}
 
-(images)
+Removing that character fixed my problem.
 
-# tl;dr
+But where did I get this zero-width space from? In my case it was Jenkins -- I copied build number and pasted it into my `docker-compose.yml`. It turns out that Jenkins puts a zero-width space inside the build numbers, huh. I guess the moral of this story is to always be carefull with copying stuff from the web into source code.
 
-Some url in your configuration or code got contaminated with zero-width space -- a character that will most likely not show in any editor. Check all urls that you recently modified (probably copy-pasted) for that character.
-
-# Final thoughts
-
-One more thought: after fixing this error, I noticed, that it actually showed in git diff command. Pro tip: to avoid such strange problems, watch carefully what you commit!
+One more tip: I've noticed that `git diff` will actually show zero-width spaces as `<U+200B>`. I don't know many people who use `git diff` on a daily basis, but it might prove to be a good way of finding zero-width spaces once you know they are in your source code.
 
 Some more info on zero-width space:
 
 [https://en.wikipedia.org/wiki/Zero-width_space](https://en.wikipedia.org/wiki/Zero-width_space)
 
-todo: check spelling and stuff
+# tl;dr
+
+Some URL in your configuration or code got contaminated with [zero-width space](https://en.wikipedia.org/wiki/Zero-width_space) -- a character that will most likely not show in any text editor, but will break URL parsing. Check all URLs that you recently modified (probably copy-pasted) for that character, e. g. using some hex editor or `git diff`.
