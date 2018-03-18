@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "hexo": {
-    "version": "3.3.8"
+    "version": "3.6.0"
   },
   "scripts": {
-    "generate": "yarn && hexo generate"
+    "generate": "yarn && hexo generate",
+    "server": "yarn && hexo server"
   },
   "dependencies": {
     "hexo": "^3.2.0",
